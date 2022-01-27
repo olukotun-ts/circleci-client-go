@@ -1,4 +1,4 @@
-module olukotun-ts/cciclient
+module go-client-circleci
 
 go 1.17
 
