@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	// "string"
+	"net/http"
 )
 
 type ProjectsService service
@@ -66,8 +66,10 @@ func (svc *ProjectsService) Get(ctx context.Context, projectSlug string) (*Proje
 	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
 }
 
-// todo: Return response with Project attached
-func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, branch string) error {
+// todo:
+	// - Return response with Project attached
+	// - Test return codes for already-followed projects, missing projects, no permission
+func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, branch string) (*http.Response, error) {
 	url := fmt.Sprintf("%sproject/%s/follow", svc.client.v1api, projectSlug)
 
 	reqBody, _ := json.Marshal(map[string]string{
@@ -78,19 +80,18 @@ func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, bran
 	res, err := svc.client.Do(ctx, req)
 	if err != nil {
 		log.Print("Error completing request:", err)
-		return err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		log.Print("Following project at ", projectSlug)
-		return nil
+		return res, nil
 	}
 
-	return errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
+	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
 }
 
-func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) error {
+func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) (*http.Response, error) {
 	url := fmt.Sprintf("%sproject/%s/unfollow", svc.client.v1api, projectSlug)
 
 	req, _ := svc.client.NewRequest("POST", url, nil)
@@ -98,14 +99,13 @@ func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) er
 	res, err := svc.client.Do(ctx, req)
 	if err != nil {
 		log.Print("Error completing request:", err)
-		return err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		log.Print("Unfollowed project at ", projectSlug)
-		return nil
+		return res, nil
 	}
 
-	return errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
+	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
 }
