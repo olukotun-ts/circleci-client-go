@@ -4,9 +4,10 @@ import (
 	"context"
 	"io"
 	"log"
-	"os"
 	"net/http"
 	"net/url"
+	"os"
+	"time"
 )
 
 const (
@@ -29,7 +30,7 @@ type service struct {
 
 func NewClient(httpClient *http.Client) *Client {
 	if httpClient ==  nil {
-		httpClient = &http.Client{}
+		httpClient = &http.Client{Timeout: 20 * time.Second}
 	}
 
 	v1, _ := url.Parse(APIv1)
