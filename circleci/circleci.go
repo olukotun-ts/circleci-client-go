@@ -54,8 +54,8 @@ func (c *Client) NewRequest(method, url string, body io.Reader) (*http.Request, 
 		return nil, err
 	}
 
-	req.Header.Set("circle-token", os.Getenv("CIRCLE_TOKEN"))
-	req.Header.Set("content-type", "appliation/json")
+	req.Header.Set("Circle-Token", os.Getenv("CIRCLE_TOKEN"))
+	req.Header.Set("Content-Type", "application/json")
 
 	return req, nil
 }

@@ -34,6 +34,7 @@ type FollowProjectResponse struct {
 	FirstBuild	bool	`json:"first_build"`
 }
 
+// Todo: Prompt for reponame only and reconstruct slug in function from VCS provider, org name, and reponame
 func (svc *ProjectsService) Get(ctx context.Context, projectSlug string) (*Project, error) {
 	url := fmt.Sprintf("%sproject/%s", svc.client.v2api, projectSlug)
 	req, err := svc.client.NewRequest("GET", url, nil)
@@ -66,9 +67,9 @@ func (svc *ProjectsService) Get(ctx context.Context, projectSlug string) (*Proje
 	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
 }
 
-// todo:
+// Todo:
 	// - Return response with Project attached
-	// - Test return codes for already-followed projects, missing projects, no permission
+	// - Test return codes for already-(un)followed projects, missing projects, no permission, no config
 func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, branch string) (*http.Response, error) {
 	url := fmt.Sprintf("%sproject/%s/follow", svc.client.v1api, projectSlug)
 
@@ -91,21 +92,54 @@ func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, bran
 	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
 }
 
+// Why branch string instead of list of corresponding branches?
+//		- encourage naming conventions
+// 		- onboarding should either use master for all projects to follow
+// 		- or create a same-named branch on all projects for POCs
+func (svc *ProjectsService) FollowMany(ctx context.Context, projectSlugs []string, branch string) ([]*http.Response, error) {
+	responses := []*http.Response{}
+	// Todo: Explore implementation with a Go routine and concurrent requests.
+	for _, slug := range projectSlugs {
+		resp, err := svc.Follow(ctx, slug, branch)
+		if err != nil {
+			return nil, err
+		}
+
+		responses = append(responses, resp)
+	}
+
+	return responses, nil
+}
+
 func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) (*http.Response, error) {
 	url := fmt.Sprintf("%sproject/%s/unfollow", svc.client.v1api, projectSlug)
-
+	
 	req, _ := svc.client.NewRequest("POST", url, nil)
-
+	
 	res, err := svc.client.Do(ctx, req)
 	if err != nil {
 		log.Print("Error completing request:", err)
 		return nil, err
 	}
 	defer res.Body.Close()
-
+	
 	if res.StatusCode == 200 {
 		return res, nil
 	}
-
+	
 	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
+}
+
+func (svc *ProjectsService) UnfollowMany(ctx context.Context, projectSlugs []string) ([]*http.Response, error) {
+	responses := []*http.Response{}
+	for _, slug := range projectSlugs {
+		resp, err := svc.Unfollow(ctx, slug)
+		if err != nil {
+			return nil, err
+		}
+
+		responses = append(responses, resp)
+	}
+
+	return responses, nil
 }
