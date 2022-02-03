@@ -17,6 +17,7 @@ const (
 
 type Client struct {
 	Projects	*ProjectsService
+	// Users		*UsersService
 	
 	client		*http.Client
 	common 		service
@@ -43,6 +44,7 @@ func NewClient(httpClient *http.Client) *Client {
 	}
 	c.common.client = c
 	c.Projects = (*ProjectsService)(&c.common)
+	// c.Users = (*UsersService)(&c.common)
 
 	return c
 }

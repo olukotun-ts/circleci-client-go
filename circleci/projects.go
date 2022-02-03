@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -39,13 +38,11 @@ func (svc *ProjectsService) Get(ctx context.Context, projectSlug string) (*Proje
 	url := fmt.Sprintf("%sproject/%s", svc.client.v2api, projectSlug)
 	req, err := svc.client.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Print("Error unmarshalling proj:", err)
 		return nil, err
 	}
 
 	res, err := svc.client.Do(ctx, req)
 	if err != nil {
-		log.Print("Error unmarshalling proj:", err)
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -56,15 +53,13 @@ func (svc *ProjectsService) Get(ctx context.Context, projectSlug string) (*Proje
 		var proj Project
 		err = json.Unmarshal(body, &proj)
 		if err != nil {
-			log.Print("Error unmarshalling proj:", err)
 			return nil, err
 		}
 
 		return &proj, nil
 	}
 
-
-	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
+	return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 }
 
 // Todo:
@@ -80,7 +75,6 @@ func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, bran
 
 	res, err := svc.client.Do(ctx, req)
 	if err != nil {
-		log.Print("Error completing request:", err)
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -89,7 +83,7 @@ func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, bran
 		return res, nil
 	}
 
-	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
+	return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 }
 
 // Why branch string instead of list of corresponding branches?
@@ -127,7 +121,7 @@ func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) (*
 		return res, nil
 	}
 	
-	return nil, errors.New(fmt.Sprintf("Expected 200 status code; got %v instead", res.StatusCode))
+	return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 }
 
 func (svc *ProjectsService) UnfollowMany(ctx context.Context, projectSlugs []string) ([]*http.Response, error) {
