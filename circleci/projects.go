@@ -26,6 +26,15 @@ type VCSInfo struct {
 }
 
 // todo: Include in svc.Follow() response
+/*
+https://github.com/hashicorp/terraform-provider-hashicups/blob/implement-create/hashicups/resource_order.go#L83-L88
+		oi := hc.OrderItem{
+			Coffee: hc.Coffee{
+				ID: coffee["id"].(int),
+			},
+			Quantity: i["quantity"].(int),
+		}
+*/
 type FollowProjectResponse struct {
 	Project
 	Following	bool	`json:"following"`
