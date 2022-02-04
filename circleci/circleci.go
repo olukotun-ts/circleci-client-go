@@ -16,13 +16,13 @@ const (
 )
 
 type Client struct {
-	Projects	*ProjectsService
-	Users		*UsersService
-	
-	client		*http.Client
-	common 		service
-	v1api		*url.URL
-	v2api		*url.URL
+	Projects *ProjectsService
+	Users    *UsersService
+
+	client *http.Client
+	common service
+	v1api  *url.URL
+	v2api  *url.URL
 }
 
 type service struct {
@@ -30,7 +30,7 @@ type service struct {
 }
 
 func NewClient(httpClient *http.Client) *Client {
-	if httpClient ==  nil {
+	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 20 * time.Second}
 	}
 
@@ -39,8 +39,8 @@ func NewClient(httpClient *http.Client) *Client {
 
 	c := &Client{
 		client: httpClient,
-		v1api: v1,
-		v2api: v2,
+		v1api:  v1,
+		v2api:  v2,
 	}
 	c.common.client = c
 	c.Projects = (*ProjectsService)(&c.common)
@@ -58,6 +58,7 @@ func (c *Client) NewRequest(method, url string, body io.Reader) (*http.Request, 
 
 	req.Header.Set("Circle-Token", os.Getenv("CIRCLE_TOKEN"))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
 	return req, nil
 }
@@ -69,6 +70,6 @@ func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, err
 		log.Print("Error completing request", err)
 		return nil, err
 	}
-	
+
 	return res, nil
 }

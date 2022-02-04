@@ -10,10 +10,11 @@ import (
 func main() {
 	ctx := context.Background()
 	c := circleci.NewClient(nil)
-	res, err := c.Projects.Follow(ctx, "gh/olukotun-ts/name-button", "master")
+	resp, err := c.Projects.Follow(ctx, "gh/olukotun-ts/name-button", "master")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Print("Request completed with: ", res.Status)
+	log.Print("Request completed for: ", resp.Project.Slug)
+	log.Print("Follow status: ", resp.Following)
 }

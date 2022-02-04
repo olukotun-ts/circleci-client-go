@@ -6,40 +6,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
-	"net/http"
 )
 
 type ProjectsService service
 
 type Project struct {
-	Slug            string  `json:"slug"`
-	Organization 	string  `json:"organization_name"`
-	Name            string  `json:"name"`
-	VCS          	VCSInfo `json:"vcs_info"`
+	Slug         string  `json:"slug"`
+	Organization string  `json:"organization_name"`
+	Name         string  `json:"name"`
+	VCS          VCSInfo `json:"vcs_info"`
 }
 
 type VCSInfo struct {
-	URL        		string `json:"vcs_url"`
-	DefaultBranch 	string `json:"default_branch"`
-	Provider      	string `json:"provider"`
+	URL           string `json:"vcs_url"`
+	DefaultBranch string `json:"default_branch"`
+	Provider      string `json:"provider"`
 }
 
-// todo: Include in svc.Follow() response
-/*
-https://github.com/hashicorp/terraform-provider-hashicups/blob/implement-create/hashicups/resource_order.go#L83-L88
-		oi := hc.OrderItem{
-			Coffee: hc.Coffee{
-				ID: coffee["id"].(int),
-			},
-			Quantity: i["quantity"].(int),
-		}
-*/
-type FollowProjectResponse struct {
-	Project
-	Following	bool	`json:"following"`
-	Workflow	bool	`json:"workflow"`
-	FirstBuild	bool	`json:"first_build"`
+type ProjectResponse struct {
+	Project   *Project
+	Following bool `json:"following"`
 }
 
 // Todo: Prompt for reponame only and reconstruct slug in function from VCS provider, org name, and reponame
@@ -72,9 +58,9 @@ func (svc *ProjectsService) Get(ctx context.Context, projectSlug string) (*Proje
 }
 
 // Todo:
-	// - Return response with Project attached
-	// - Test return codes for already-(un)followed projects, missing projects, no permission, no config
-func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, branch string) (*http.Response, error) {
+// - Test return codes for already-(un)followed projects, missing projects, no permission, no config
+// - Experiment with diags
+func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, branch string) (*ProjectResponse, error) {
 	url := fmt.Sprintf("%sproject/%s/follow", svc.client.v1api, projectSlug)
 
 	reqBody, _ := json.Marshal(map[string]string{
@@ -88,19 +74,40 @@ func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, bran
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode == 200 {
-		return res, nil
+	switch res.StatusCode {
+	case 200:
+		resBody, _ := ioutil.ReadAll(res.Body)
+		var response ProjectResponse
+		err = json.Unmarshal(resBody, &response)
+		if err != nil {
+			return nil, err
+		}
+
+		proj, err := svc.Get(ctx, projectSlug)
+		if err != nil {
+			return nil, err
+		}
+		response.Project = proj
+
+		return &response, nil
+	case 429:
+		// For HTTP APIs, when a request is throttled, you will receive HTTP status code 429.
+		// If your integration requires that a throttled request is completed, then you should retry these requests after a delay, using an exponential backoff.
+		// In most cases, the HTTP 429 response code will be accompanied by the Retry-After HTTP header.
+		// When this header is present, your integration should wait for the period of time specified by the header value before retrying a request.
+		fallthrough
+	default:
+		return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 	}
 
-	return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 }
 
 // Why branch string instead of list of corresponding branches?
 //		- encourage naming conventions
 // 		- onboarding should either use master for all projects to follow
 // 		- or create a same-named branch on all projects for POCs
-func (svc *ProjectsService) FollowMany(ctx context.Context, projectSlugs []string, branch string) ([]*http.Response, error) {
-	responses := []*http.Response{}
+func (svc *ProjectsService) FollowMany(ctx context.Context, projectSlugs []string, branch string) ([]*ProjectResponse, error) {
+	responses := []*ProjectResponse{}
 	// Todo: Explore implementation with a Go routine and concurrent requests.
 	for _, slug := range projectSlugs {
 		resp, err := svc.Follow(ctx, slug, branch)
@@ -114,27 +121,46 @@ func (svc *ProjectsService) FollowMany(ctx context.Context, projectSlugs []strin
 	return responses, nil
 }
 
-func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) (*http.Response, error) {
+func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) (*ProjectResponse, error) {
 	url := fmt.Sprintf("%sproject/%s/unfollow", svc.client.v1api, projectSlug)
-	
+
 	req, _ := svc.client.NewRequest("POST", url, nil)
-	
+
 	res, err := svc.client.Do(ctx, req)
 	if err != nil {
-		log.Print("Error completing request:", err)
 		return nil, err
 	}
 	defer res.Body.Close()
-	
-	if res.StatusCode == 200 {
-		return res, nil
+
+	switch res.StatusCode {
+	case 200:
+		resBody, _ := ioutil.ReadAll(res.Body)
+		var response ProjectResponse
+		err = json.Unmarshal(resBody, &response)
+		if err != nil {
+			return nil, err
+		}
+
+		proj, err := svc.Get(ctx, projectSlug)
+		if err != nil {
+			return nil, err
+		}
+		response.Project = proj
+
+		return &response, nil
+	case 429:
+		// For HTTP APIs, when a request is throttled, you will receive HTTP status code 429.
+		// If your integration requires that a throttled request is completed, then you should retry these requests after a delay, using an exponential backoff.
+		// In most cases, the HTTP 429 response code will be accompanied by the Retry-After HTTP header.
+		// When this header is present, your integration should wait for the period of time specified by the header value before retrying a request.
+		fallthrough
+	default:
+		return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 	}
-	
-	return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 }
 
-func (svc *ProjectsService) UnfollowMany(ctx context.Context, projectSlugs []string) ([]*http.Response, error) {
-	responses := []*http.Response{}
+func (svc *ProjectsService) UnfollowMany(ctx context.Context, projectSlugs []string) ([]*ProjectResponse, error) {
+	responses := []*ProjectResponse{}
 	for _, slug := range projectSlugs {
 		resp, err := svc.Unfollow(ctx, slug)
 		if err != nil {

@@ -10,9 +10,9 @@ import (
 type UsersService service
 
 type User struct {
-	Login 			string  `json:"login"`
-	Name            string  `json:"name"`
-	UUID            string  `json:"id"`
+	Login string `json:"login"`
+	Name  string `json:"name"`
+	UUID  string `json:"id"`
 }
 
 func (svc *UsersService) GetCurrentUser(ctx context.Context) (*User, error) {
