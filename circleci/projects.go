@@ -57,6 +57,9 @@ func (svc *ProjectsService) Get(ctx context.Context, projectSlug string) (*Proje
 	return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 }
 
+// @context: Debug 403
+// 		- don't break on return from Follow. Use diags?
+// 		- record error and continue with list in FollowMany
 // Todo:
 // - Test return codes for already-(un)followed projects, missing projects, no permission, no config
 // - Experiment with diags
@@ -73,10 +76,11 @@ func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, bran
 		return nil, err
 	}
 	defer res.Body.Close()
+	resBody, _ := ioutil.ReadAll(res.Body)
 
 	switch res.StatusCode {
-	case 200:
-		resBody, _ := ioutil.ReadAll(res.Body)
+	// API returns 422 when project is already being followed. Don't treat this as an error.
+	case 200, 422:
 		var response ProjectResponse
 		err = json.Unmarshal(resBody, &response)
 		if err != nil {
@@ -88,18 +92,16 @@ func (svc *ProjectsService) Follow(ctx context.Context, projectSlug string, bran
 			return nil, err
 		}
 		response.Project = proj
+		response.Following = true	// Manually setting to cover case of 422 status where API doesn't return `following` for the project.
 
 		return &response, nil
-	case 429:
-		// For HTTP APIs, when a request is throttled, you will receive HTTP status code 429.
-		// If your integration requires that a throttled request is completed, then you should retry these requests after a delay, using an exponential backoff.
-		// In most cases, the HTTP 429 response code will be accompanied by the Retry-After HTTP header.
-		// When this header is present, your integration should wait for the period of time specified by the header value before retrying a request.
-		fallthrough
+	case 403:
+		// Body: {"message":"For security purposes only a project's Github administrator may setup Circle. Invite this project's admin(s) by sending them this link and asking them to setup the project in Circle: <a href='https://circleci.com/'>https://circleci.com/</a>. You may also ask them to make you a Github administrator."
+		// Pattern: Seems to occur if trying to follow immediately after unfollowing. Succeeds after a delay.
+		return nil, fmt.Errorf("Received 403 status code for %s. Please try again later.", projectSlug)
 	default:
-		return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
+		return nil, fmt.Errorf("Expected 200 status code; got %v instead. Body: %s", res.StatusCode, string(resBody))
 	}
-
 }
 
 // Why branch string instead of list of corresponding branches?
@@ -148,12 +150,6 @@ func (svc *ProjectsService) Unfollow(ctx context.Context, projectSlug string) (*
 		response.Project = proj
 
 		return &response, nil
-	case 429:
-		// For HTTP APIs, when a request is throttled, you will receive HTTP status code 429.
-		// If your integration requires that a throttled request is completed, then you should retry these requests after a delay, using an exponential backoff.
-		// In most cases, the HTTP 429 response code will be accompanied by the Retry-After HTTP header.
-		// When this header is present, your integration should wait for the period of time specified by the header value before retrying a request.
-		fallthrough
 	default:
 		return nil, fmt.Errorf("Expected 200 status code; got %v instead", res.StatusCode)
 	}
